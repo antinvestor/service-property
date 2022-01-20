@@ -1,0 +1,25 @@
+version: '3'
+services:
+  
+    property_db:
+      image: postgis/postgis:14-master
+      environment:
+        POSTGRES_DB: service_property
+        POSTGRES_USER: ant
+        POSTGRES_PASSWORD: secret
+      ports:
+        - 5437:5432
+
+    migrate:
+      build: .
+
+      depends_on:
+        - property_db
+      environment:
+        - LOG_LEVEL=debug
+        - DO_MIGRATION=true
+        - DATABASE_URL=postgres://ant:secret@property_db:5432/service_property?sslmode=disable
+      restart: on-failure
+
+
+    
