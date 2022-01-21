@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-
+	"fmt"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/pitabwire/frame"
 	"gorm.io/gorm"
@@ -10,7 +10,7 @@ import (
 
 type SubscriptionRepository interface {
 	GetByID(id string) (*models.Subscription, error)
-	GetByPropertyID(propertyId string) ([]models.Subscription, error)
+	GetByPropertyID(propertyId string, query string) ([]models.Subscription, error)
 	Save(subscription *models.Subscription) error
 	Delete(id string) error
 }
@@ -33,14 +33,18 @@ func (repo *subscriptionRepository) GetByID(id string) (*models.Subscription, er
 	return &subscription, nil
 }
 
-func (repo *subscriptionRepository) GetByPropertyID(propertyId string) ([]models.Subscription, error) {
+func (repo *subscriptionRepository) GetByPropertyID(propertyId string, query string) ([]models.Subscription, error) {
 	var subscriptionList []models.Subscription
 
-	err := repo.readDb.Find(&subscriptionList,
-		"property_id = ? ", propertyId).Error
+	db := repo.readDb.Where("property_id = ? ", propertyId)
+	if query != "" {
+		db = db.Where("property_id = ? AND role iLike ? ", propertyId, fmt.Sprintf("%%%s%%", query))
+	}
+	err := db.Find(&subscriptionList).Error
 	if err != nil {
 		return nil, err
 	}
+
 	return subscriptionList, nil
 }
 

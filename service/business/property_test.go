@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/pitabwire/frame"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"reflect"
 	"testing"
 )
 
@@ -51,6 +52,44 @@ func getPartitionCli(t *testing.T) *partitionV1.PartitionClient {
 
 	profileCli := partitionV1.InstantiatePartitionsClient(nil, mockPartitionService)
 	return profileCli
+}
+
+func getTestPropertyType(ctx context.Context, profileCli *profileV1.ProfileClient) (*propertyV1.PropertyType, error) {
+	ptb := &propertyTypeBusiness{
+		service:    getService(ctx, "profileTypeService"),
+		profileCli: profileCli,
+	}
+	propertyType, err := ptb.AddPropertyType(ctx, &propertyV1.PropertyType{
+		Name: "Residential",
+	})
+	if err != nil {
+		return nil, err
+	}
+	return propertyType, nil
+}
+func getTestPropertyID(ctx context.Context, profileCli *profileV1.ProfileClient) (string, error) {
+
+	propertyType, err := getTestPropertyType(ctx, profileCli)
+	if err != nil {
+		return "", err
+	}
+
+	pb := &propertyBusiness{
+		service:    getService(ctx, "PropertyBusiness"),
+		profileCli: profileCli,
+	}
+	propertyState, err := pb.CreateProperty(ctx, &propertyV1.Property{
+		Name:         "Test property",
+		Description:  "We have a very good test that requires this description to be long enough",
+		PropertyType: propertyType,
+		StartedAt:    nil,
+		CreatedAt:    nil,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return propertyState.GetPropertyID(), nil
 }
 
 func TestNewPartitionBusiness(t *testing.T) {
@@ -103,15 +142,9 @@ func Test_propertyBusiness_CreateProperty(t *testing.T) {
 	ctx := context.Background()
 	profileCli := getProfileCli(t)
 
-	pt := &propertyTypeBusiness{
-		service:    getService(ctx, "profileTypeService"),
-		profileCli: profileCli,
-	}
-	propertyType, err := pt.AddPropertyType(ctx, &propertyV1.PropertyType{
-		Name: "Residential",
-	})
+	propertyType, err := getTestPropertyType(ctx, profileCli)
 	if err != nil {
-		t.Errorf("CreateProperty() we couldn't create a new property %v", err)
+		t.Errorf("CreateProperty() we couldn't create a new property type for test %v", err)
 	}
 
 	type fields struct {
@@ -196,4 +229,455 @@ func Test_propertyBusiness_CreateProperty(t *testing.T) {
 	}
 }
 
+func Test_propertyBusiness_UpdateProperty(t *testing.T) {
 
+	ctx := context.Background()
+	profileCli := getProfileCli(t)
+
+	type fields struct {
+		service    *frame.Service
+		profileCli *profileV1.ProfileClient
+	}
+	type args struct {
+		ctx     context.Context
+		message *propertyV1.UpdateRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "UpdatePropertySuccess",
+			fields: fields{
+				service:    getService(ctx, "UpdatePropertySuccess"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.UpdateRequest{
+					ID:          "autoSet",
+					Name:        "TestSuccess",
+					Description: "A very long description to be used for update of our property value",
+					LocalityID:  "",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "UpdatePropertySuccessMap",
+			fields: fields{
+				service:    getService(ctx, "UpdatePropertySuccessMap"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.UpdateRequest{
+					ID:          "autoSet",
+					Name:        "TestSuccess",
+					Description: "A very long description to be used for update of our property value",
+					LocalityID:  "",
+					Extras:      map[string]string{"tes": "Only testing extras"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "UpdatePropertyFailValidation",
+			fields: fields{
+				service:    getService(ctx, "UpdatePropertyFailValidation"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.UpdateRequest{
+					ID:          "-|-",
+					Name:        "TestSuccess",
+					Description: "A very long description to be used for update of our property value",
+					LocalityID:  "",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			if tt.args.message.ID == "autoSet" {
+
+				testPropertyID, err := getTestPropertyID(ctx, profileCli)
+				if err != nil {
+					t.Errorf("UpdateProperty() error = %v could not create property", err)
+					return
+				}
+
+				tt.args.message.ID = testPropertyID
+			}
+			pb := &propertyBusiness{
+				service:    tt.fields.service,
+				profileCli: tt.fields.profileCli,
+			}
+			got, err := pb.UpdateProperty(tt.args.ctx, tt.args.message)
+
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateProperty() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got.GetName() != tt.args.message.GetName() ||
+				got.GetDescription() != tt.args.message.GetDescription() ||
+				(got.GetLocality() == nil && tt.args.message.GetLocalityID() != "") ||
+				got.GetLocality().GetID() != tt.args.message.GetLocalityID() {
+				t.Errorf("UpdateProperty() got = %v, want %v", got, tt.args.message)
+			}
+		})
+	}
+}
+
+func Test_propertyBusiness_DeleteProperty(t *testing.T) {
+
+	ctx := context.Background()
+	profileCli := getProfileCli(t)
+
+	testPropertyID, err := getTestPropertyID(ctx, profileCli)
+	if err != nil {
+		t.Errorf("DeleteProperty() error = %v could not create property", err)
+		return
+	}
+
+	type fields struct {
+		service    *frame.Service
+		profileCli *profileV1.ProfileClient
+	}
+	type args struct {
+		ctx     context.Context
+		message *propertyV1.RequestID
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *propertyV1.PropertyState
+		wantErr bool
+	}{
+		{
+			name: "DeletePropertySuccess",
+			fields: fields{
+				service:    getService(ctx, "DeletePropertySuccess"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: testPropertyID,
+				},
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "DeletePropertyFailure",
+			fields: fields{
+				service:    getService(ctx, "DeletePropertyFailure"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: "",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "DeletePropertyFailureValidation",
+			fields: fields{
+				service:    getService(ctx, "DeletePropertyFailureValidation"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: "",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pb := &propertyBusiness{
+				service:    tt.fields.service,
+				profileCli: tt.fields.profileCli,
+			}
+			got, err := pb.DeleteProperty(tt.args.ctx, tt.args.message)
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteProperty() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("DeleteProperty() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_propertyBusiness_StateOfProperty(t *testing.T) {
+
+	ctx := context.Background()
+	profileCli := getProfileCli(t)
+
+	testPropertyID, err := getTestPropertyID(ctx, profileCli)
+	if err != nil {
+		t.Errorf("DeleteProperty() error = %v could not create property", err)
+		return
+	}
+
+	type fields struct {
+		service    *frame.Service
+		profileCli *profileV1.ProfileClient
+	}
+	type args struct {
+		ctx     context.Context
+		message *propertyV1.RequestID
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "StateOfPropertySuccess",
+			fields: fields{
+				service:    getService(ctx, "StateOfPropertySuccess"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: testPropertyID,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "StateOfPropertyFailure",
+			fields: fields{
+				service:    getService(ctx, "StateOfPropertyFailure"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: "testingNonExistent",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "StateOfPropertyFailureValidation",
+			fields: fields{
+				service:    getService(ctx, "StateOfPropertyFailureValidation"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.RequestID{
+					ID: "_|",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pb := &propertyBusiness{
+				service:    tt.fields.service,
+				profileCli: tt.fields.profileCli,
+			}
+			got, err := pb.StateOfProperty(tt.args.ctx, tt.args.message)
+
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("StateOfProperty() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if got.GetPropertyID() != testPropertyID {
+				t.Errorf("StateOfProperty() got = %v, want %v", got.GetPropertyID(), testPropertyID)
+			}
+		})
+	}
+}
+
+func Test_propertyBusiness_HistoryOfProperty(t *testing.T) {
+
+	ctx := context.Background()
+	profileCli := getProfileCli(t)
+
+	testPropertyID, err := getTestPropertyID(ctx, profileCli)
+	if err != nil {
+		t.Errorf("HistoryOfProperty() we couldn't create a new property for test : %v", err)
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	historyOfProperty := propertyV1.NewMockPropertyService_HistoryOfPropertyServer(controller)
+	historyOfProperty.EXPECT().Context().Return(ctx).AnyTimes()
+	historyOfProperty.EXPECT().Send(gomock.Any()).Return(nil).AnyTimes()
+
+	type fields struct {
+		service    *frame.Service
+		profileCli *profileV1.ProfileClient
+	}
+	type args struct {
+		message *propertyV1.RequestID
+		stream  propertyV1.PropertyService_HistoryOfPropertyServer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "HistoryOfPropertySuccess",
+			fields: fields{
+				service:    getService(ctx, "HistoryOfPropertySuccess"),
+				profileCli: profileCli,
+			},
+			args: args{
+				message: &propertyV1.RequestID{
+					ID: testPropertyID,
+				},
+				stream: historyOfProperty,
+			},
+			wantErr: false,
+		},
+		{
+			name: "HistoryOfPropertyFailure",
+			fields: fields{
+				service:    getService(ctx, "HistoryOfPropertyFailure"),
+				profileCli: profileCli,
+			},
+			args: args{
+				message: &propertyV1.RequestID{
+					ID: "randomNonExistentProperty",
+				},
+				stream: historyOfProperty,
+			},
+			wantErr: true,
+		},
+		{
+			name: "HistoryOfPropertyFailureValidation",
+			fields: fields{
+				service:    getService(ctx, "HistoryOfPropertyFailureValidation"),
+				profileCli: profileCli,
+			},
+			args: args{
+				message: &propertyV1.RequestID{
+					ID: "__",
+				},
+				stream: historyOfProperty,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pb := &propertyBusiness{
+				service:    tt.fields.service,
+				profileCli: tt.fields.profileCli,
+			}
+			err := pb.HistoryOfProperty(tt.args.message, tt.args.stream)
+
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HistoryOfProperty() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_propertyBusiness_SearchProperty(t *testing.T) {
+
+	ctx := context.Background()
+	profileCli := getProfileCli(t)
+
+	testPropertyID, err := getTestPropertyID(ctx, profileCli)
+	if err != nil {
+		t.Errorf("HistoryOfProperty() we couldn't create a new property for test : %v", err)
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	searchPropertyStream := propertyV1.NewMockPropertyService_SearchPropertyServer(controller)
+	searchPropertyStream.EXPECT().Context().Return(ctx).AnyTimes()
+	searchPropertyStream.EXPECT().Send(gomock.Any()).Return(nil).AnyTimes()
+
+	type fields struct {
+		service    *frame.Service
+		profileCli *profileV1.ProfileClient
+	}
+	type args struct {
+		search *propertyV1.SearchRequest
+		stream propertyV1.PropertyService_SearchPropertyServer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "SearchPropertySuccess",
+			fields: fields{
+				service:    getService(ctx, "SearchPropertySuccess"),
+				profileCli: profileCli,
+			},
+			args: args{
+				search: &propertyV1.SearchRequest{
+					Query: testPropertyID,
+				},
+				stream: searchPropertyStream,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pb := &propertyBusiness{
+				service:    tt.fields.service,
+				profileCli: tt.fields.profileCli,
+			}
+			err := pb.SearchProperty(tt.args.search, tt.args.stream)
+
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SearchProperty() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

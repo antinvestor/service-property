@@ -21,11 +21,17 @@ func (s *subscriptionBusiness) AddSubscription(ctx context.Context, message *pro
 		return nil, err
 	}
 
+	propertyRepository := repository.NewPropertyRepository(ctx, s.service)
 	subscriptionRepository := repository.NewSubscriptionRepository(ctx, s.service)
+
+	property, err := propertyRepository.GetByID(message.GetPropertyID())
+	if err != nil {
+		return nil, err
+	}
 
 	locality := models.Subscription{
 
-		PropertyID: message.GetPropertyID(),
+		PropertyID: property.GetID(),
 		ProfileID:  message.GetProfileID(),
 		Role:       message.GetRole(),
 		Extra:      frame.DBPropertiesFromMap(message.GetExtra()),
@@ -53,9 +59,15 @@ func (s *subscriptionBusiness) ListSubscriptions(message *propertyV1.Subscriptio
 		return err
 	}
 
+	propertyRepository := repository.NewPropertyRepository(stream.Context(), s.service)
 	subscriptionRepository := repository.NewSubscriptionRepository(stream.Context(), s.service)
 
-	subscriptionList, err := subscriptionRepository.GetByPropertyID(message.GetPropertyID())
+	property, err := propertyRepository.GetByID(message.GetPropertyID())
+	if err != nil {
+		return err
+	}
+
+	subscriptionList, err := subscriptionRepository.GetByPropertyID(property.GetID(), message.GetQuery())
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-
+	"fmt"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/pitabwire/frame"
 	"gorm.io/gorm"
@@ -41,6 +41,7 @@ func (repo *propertyTypeRepository) GetAllByQuery(query string) ([]models.Proper
 			return nil, err
 		}
 	} else {
+		query = fmt.Sprintf("%%%s%%", query)
 		err := repo.readDb.Find(&routes, "name iLike ?", query).Error
 		if err != nil {
 			return nil, err

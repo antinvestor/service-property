@@ -10,7 +10,7 @@ import (
 
 type PropertyRepository interface {
 	GetByID(id string) (*models.Property, error)
-	SearchByPartition(partitionId string, query string) ([]models.Property, error)
+	Search(query string) ([]models.Property, error)
 	Save(property *models.Property) error
 	Delete(id string) error
 }
@@ -33,12 +33,12 @@ func (repo *propertyRepository) GetByID(id string) (*models.Property, error) {
 	return &property, nil
 }
 
-func (repo *propertyRepository) SearchByPartition(partitionId string, query string) ([]models.Property, error) {
+func (repo *propertyRepository) Search(query string) ([]models.Property, error) {
 	var properties []models.Property
 
 	err := repo.readDb.Find(&properties,
-		"partition_id = ? AND (id ILIKE ? OR name ILIKE ? OR description ILIKE ?)",
-		partitionId, query, query, query).Error
+		" id ILIKE ? OR name ILIKE ? OR description ILIKE ?",
+		query, query, query).Error
 	if err != nil {
 		return nil, err
 	}

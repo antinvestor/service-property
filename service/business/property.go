@@ -118,7 +118,7 @@ func (pb *propertyBusiness) UpdateProperty(ctx context.Context, message *propert
 	}
 
 	if message.GetDescription() != "" {
-		property.Name = message.GetDescription()
+		property.Description = message.GetDescription()
 	}
 
 	if message.GetExtras() != nil {
@@ -183,9 +183,15 @@ func (pb *propertyBusiness) StateOfProperty(ctx context.Context, message *proper
 		return nil, err
 	}
 
+	propertyRepository := repository.NewPropertyRepository(ctx, pb.service)
+	property, err := propertyRepository.GetByID(message.GetID())
+	if err != nil {
+		return nil, err
+	}
+
 	propertyStateRepository := repository.NewPropertyStateRepository(ctx, pb.service)
 
-	propertyState, err := propertyStateRepository.GetByPropertyID(message.GetID())
+	propertyState, err := propertyStateRepository.GetByPropertyID(property.GetID())
 	if err != nil {
 		return nil, err
 	}
@@ -200,9 +206,15 @@ func (pb *propertyBusiness) HistoryOfProperty(message *propertyV1.RequestID, str
 		return err
 	}
 
+	propertyRepository := repository.NewPropertyRepository(stream.Context(), pb.service)
+	property, err := propertyRepository.GetByID(message.GetID())
+	if err != nil {
+		return err
+	}
+
 	propertyStateRepository := repository.NewPropertyStateRepository(stream.Context(), pb.service)
 
-	propertyStateList, err := propertyStateRepository.GetAllByPropertyID(message.GetID())
+	propertyStateList, err := propertyStateRepository.GetAllByPropertyID(property.GetID())
 	if err != nil {
 		return err
 	}
@@ -224,11 +236,9 @@ func (pb *propertyBusiness) SearchProperty(search *propertyV1.SearchRequest, str
 		return err
 	}
 
-	authClaims := frame.ClaimsFromContext(stream.Context())
-
 	propertyRepository := repository.NewPropertyRepository(stream.Context(), pb.service)
 
-	propertyList, err := propertyRepository.SearchByPartition(authClaims.PartitionID, search.GetQuery())
+	propertyList, err := propertyRepository.Search(search.GetQuery())
 	if err != nil {
 		return err
 	}
