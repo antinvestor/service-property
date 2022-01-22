@@ -63,7 +63,7 @@ func Test_propertyTypeBusiness_AddPropertyType(t *testing.T) {
 			args: args{
 				ctx: ctx,
 				message: &propertyV1.PropertyType{
-					ID:          "c2f4j7au6s7f91uqnoxg",
+					ID:          "9m4e2mr0ui3e8a215n4g",
 					Name:        "Checking with ID",
 					Description: "A simple building that is under test multiply to 50",
 					Extra:       map[string]string{"testing": "More test data"},
@@ -71,13 +71,36 @@ func Test_propertyTypeBusiness_AddPropertyType(t *testing.T) {
 				},
 			},
 			want: &propertyV1.PropertyType{
-				ID:          "c2f4j7au6s7f91uqnoxg",
+				ID:          "9m4e2mr0ui3e8a215n4g",
 				Name:        "Checking with ID",
 				Description: "A simple building that is under test multiply to 50",
 				Extra:       map[string]string{"testing": "More test data"},
 				CreatedAt:   timestamppb.Now(),
 			},
 			wantErr: false,
+		},
+		{
+			name: "AddPropertyTypeFailValidation",
+			fields: fields{
+				service:    getService(ctx, "AddPropertyTypeFailValidation"),
+				profileCli: profileCli,
+			},
+			args: args{
+				ctx: ctx,
+				message: &propertyV1.PropertyType{
+					Name:        "_",
+					Description: "A simple building that is under test multiply to 50",
+					Extra:       map[string]string{"testing": "More test data"},
+					CreatedAt:   timestamppb.Now(),
+				},
+			},
+			want: &propertyV1.PropertyType{
+				Name:        "Checking with ID",
+				Description: "A simple building that is under test multiply to 50",
+				Extra:       map[string]string{"testing": "More test data"},
+				CreatedAt:   timestamppb.Now(),
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -87,6 +110,11 @@ func Test_propertyTypeBusiness_AddPropertyType(t *testing.T) {
 				profileCli: tt.fields.profileCli,
 			}
 			got, err := pt.AddPropertyType(tt.args.ctx, tt.args.message)
+
+			if (err != nil) == tt.wantErr {
+				return
+			}
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddPropertyType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -138,10 +166,7 @@ func Test_propertyTypeBusiness_ListPropertyType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pt := &propertyTypeBusiness{
-				service:    tt.fields.service,
-				profileCli: tt.fields.profileCli,
-			}
+			pt, _ := NewPropertyTypeBusiness(ctx, tt.fields.service, tt.fields.profileCli)
 			if err := pt.ListPropertyType(tt.args.message, tt.args.stream); (err != nil) != tt.wantErr {
 				t.Errorf("ListPropertyType() error = %v, wantErr %v", err, tt.wantErr)
 			}

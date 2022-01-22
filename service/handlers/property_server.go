@@ -22,15 +22,15 @@ func (server *PropertyServer) newPropertyBusiness(ctx context.Context) (business
 }
 
 func (server *PropertyServer) newPropertyTypeBusiness(ctx context.Context) (business.PropertyTypeBusiness, error) {
-	return business.NewPropertyTypeBusiness(ctx, server.Service, server.ProfileCli, server.PartitionCli)
+	return business.NewPropertyTypeBusiness(ctx, server.Service, server.ProfileCli)
 }
 
 func (server *PropertyServer) newLocalityBusiness(ctx context.Context) (business.LocalityBusiness, error) {
-	return business.NewLocalityBusiness(ctx, server.Service, server.ProfileCli, server.PartitionCli)
+	return business.NewLocalityBusiness(ctx, server.Service, server.ProfileCli)
 }
 
 func (server *PropertyServer) newSubscriptionBusiness(ctx context.Context) (business.SubscriptionBusiness, error) {
-	return business.NewSubscriptionBusiness(ctx, server.Service, server.ProfileCli, server.PartitionCli)
+	return business.NewSubscriptionBusiness(ctx, server.Service, server.ProfileCli)
 }
 
 func (server *PropertyServer) AddPropertyType(ctx context.Context, message *propertyV1.PropertyType) (*propertyV1.PropertyType, error) {

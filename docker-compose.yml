@@ -2,13 +2,15 @@ version: '3'
 services:
   
     property_db:
-      image: postgis/postgis:14-master
+      image: postgres:14
       environment:
         POSTGRES_DB: service_property
         POSTGRES_USER: ant
         POSTGRES_PASSWORD: secret
+      command: postgres -c shared_buffers=256MB -c max_connections=200
       ports:
         - 5437:5432
+
 
     migrate:
       build: .

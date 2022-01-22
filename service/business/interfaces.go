@@ -35,9 +35,9 @@ type PropertyTypeBusiness interface {
 	ListPropertyType(*propertyV1.SearchRequest, propertyV1.PropertyService_ListTypeServer) error
 }
 
-func NewPropertyTypeBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient, partitionCli *partapi.PartitionClient) (PropertyTypeBusiness, error) {
+func NewPropertyTypeBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (PropertyTypeBusiness, error) {
 
-	if service == nil || profileCli == nil || partitionCli == nil {
+	if service == nil || profileCli == nil {
 		return nil, ErrorInitializationFail
 	}
 
@@ -52,9 +52,9 @@ type LocalityBusiness interface {
 	DeleteLocality(context.Context, *propertyV1.RequestID) error
 }
 
-func NewLocalityBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient, partitionCli *partapi.PartitionClient) (LocalityBusiness, error) {
+func NewLocalityBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (LocalityBusiness, error) {
 
-	if service == nil || profileCli == nil || partitionCli == nil {
+	if service == nil || profileCli == nil {
 		return nil, ErrorInitializationFail
 	}
 
@@ -70,9 +70,9 @@ type SubscriptionBusiness interface {
 	DeleteSubscription(context.Context, *propertyV1.RequestID) error
 }
 
-func NewSubscriptionBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient, partitionCli *partapi.PartitionClient) (SubscriptionBusiness, error) {
+func NewSubscriptionBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (SubscriptionBusiness, error) {
 
-	if service == nil || profileCli == nil || partitionCli == nil {
+	if service == nil || profileCli == nil {
 		return nil, ErrorInitializationFail
 	}
 

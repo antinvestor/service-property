@@ -3,8 +3,6 @@ package models
 import (
 	"github.com/antinvestor/apis/common"
 	propertyV1 "github.com/antinvestor/service-property-api"
-	"github.com/twpayne/go-geom/encoding/ewkb"
-	"github.com/twpayne/go-geom/encoding/geojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 
@@ -16,28 +14,33 @@ import (
 type Locality struct {
 	frame.BaseModel
 
-	ParentID    string       `gorm:"type:varchar(50)"`
-	Name        string       `gorm:"type:varchar(50)"`
-	Description string       `gorm:"type:text"`
-	Boundary    ewkb.Polygon `gorm:"type:geometry(Polygon)"`
+	ParentID    string `gorm:"type:varchar(50)"`
+	Name        string `gorm:"type:varchar(50)"`
+	Description string `gorm:"type:text"`
+	Point       datatypes.JSON
+	Boundary    datatypes.JSON
 	Extra       datatypes.JSONMap
 }
 
 func (l *Locality) ToApi() *propertyV1.Locality {
 
-	jsonBoundary, err := geojson.Marshal(l.Boundary.Polygon)
-	if err != nil {
-		return nil
-	}
-
-	return &propertyV1.Locality{
+	locality := &propertyV1.Locality{
 		ID:          l.GetID(),
 		ParentID:    l.ParentID,
 		Name:        l.Name,
 		Description: l.Description,
 		Extras:      frame.DBPropertiesToMap(l.Extra),
-		Boundary:    string(jsonBoundary),
+		CreatedAt:   timestamppb.New(l.CreatedAt),
 	}
+
+	if l.Boundary.String() != "{}" {
+		locality.Feature = &propertyV1.Locality_Boundary{Boundary: l.Boundary.String()}
+	} else {
+
+		locality.Feature = &propertyV1.Locality_Point{Point: l.Point.String()}
+	}
+
+	return locality
 }
 
 type PropertyType struct {

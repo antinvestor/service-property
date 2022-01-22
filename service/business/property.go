@@ -81,6 +81,8 @@ func (pb *propertyBusiness) CreateProperty(ctx context.Context, message *propert
 		return nil, err
 	}
 
+	propertyStateRepo := repository.NewPropertyStateRepository(ctx, pb.service)
+
 	propertyState := models.PropertyState{
 		PropertyID: property.GetID(),
 		State:      int32(common.STATE_CREATED.Number()),
@@ -90,12 +92,16 @@ func (pb *propertyBusiness) CreateProperty(ctx context.Context, message *propert
 
 	propertyState.GenID(ctx)
 
-	// Queue out notification status for further processing
-	eventState := events.PropertyStateSave{}
-	err = pb.service.Emit(ctx, eventState.Name(), propertyState)
+	err = propertyStateRepo.Save(&propertyState)
 	if err != nil {
 		return nil, err
 	}
+	//// Queue out notification status for further processing
+	//eventState := events.PropertyStateSave{}
+	//err = pb.service.Emit(ctx, eventState.Name(), propertyState)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return propertyState.ToApi(), nil
 }

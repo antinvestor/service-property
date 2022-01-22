@@ -81,10 +81,8 @@ func Test_subscriptionBusiness_AddSubscription(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &subscriptionBusiness{
-				service:    tt.fields.service,
-				profileCli: tt.fields.profileCli,
-			}
+
+			s, _ := NewSubscriptionBusiness(ctx, tt.fields.service, tt.fields.profileCli)
 			got, err := s.AddSubscription(tt.args.ctx, tt.args.message)
 
 			if tt.wantErr == (err != nil) {

@@ -3,16 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	partitionV1 "github.com/antinvestor/service-partition-api"
-
 	"github.com/antinvestor/apis"
+	partitionV1 "github.com/antinvestor/service-partition-api"
 	propertyV1 "github.com/antinvestor/service-property-api"
 	"github.com/antinvestor/service-property/config"
 	"github.com/antinvestor/service-property/service/events"
-
 	"github.com/antinvestor/service-property/service/handlers"
 	"github.com/antinvestor/service-property/service/models"
-
 	"os"
 	"strconv"
 
@@ -49,7 +46,7 @@ func main() {
 
 		migrationPath := frame.GetEnv(config.EnvMigrationPath, "./migrations/0001")
 		err := service.MigrateDatastore(ctx, migrationPath,
-			models.PropertyType{}, models.Locality{}, models.PropertyState{},
+			&models.PropertyType{}, &models.Locality{}, models.PropertyState{},
 			models.Property{}, models.Subscription{})
 
 		if err != nil {

@@ -5,23 +5,28 @@ import (
 
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/pitabwire/frame"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type LocalityRepository interface {
 	GetByID(id string) (*models.Locality, error)
 	Delete(id string) error
-	Save(locality *models.Locality) error
+	Save(locality frame.BaseModelI) error
 }
 
 type localityRepository struct {
-	readDb  *gorm.DB
-	writeDb *gorm.DB
+	baseRepository
 }
 
 func NewLocalityRepository(ctx context.Context, service *frame.Service) LocalityRepository {
-	return &localityRepository{readDb: service.DB(ctx, true), writeDb: service.DB(ctx, false)}
+	return &localityRepository{
+		baseRepository: baseRepository{
+			readDb:  service.DB(ctx, true),
+			writeDb: service.DB(ctx, false),
+			instanceCreator: func() frame.BaseModelI {
+				return &models.Locality{}
+			},
+		},
+	}
 }
 
 func (repo *localityRepository) Delete(id string) error {
@@ -35,18 +40,9 @@ func (repo *localityRepository) Delete(id string) error {
 }
 
 func (repo *localityRepository) GetByID(id string) (*models.Locality, error) {
-	locality := models.Locality{}
-	err := repo.readDb.Preload(clause.Associations).First(&locality, "id = ?", id).Error
+	locality, err := repo.baseRepository.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
-	return &locality, nil
-}
-
-func (repo *localityRepository) Save(template *models.Locality) error {
-	err := repo.writeDb.Save(template).Error
-	if frame.DBErrorIsRecordNotFound(err) {
-		return repo.writeDb.Create(template).Error
-	}
-	return nil
+	return locality.(*models.Locality), err
 }
