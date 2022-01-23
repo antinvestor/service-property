@@ -9,7 +9,7 @@ require (
 	github.com/antinvestor/service-property-api v1.0.6
 	github.com/golang/mock v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
-	github.com/pitabwire/frame v1.7.3
+	github.com/pitabwire/frame v1.7.6
 	github.com/twpayne/go-geom v1.4.1
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
@@ -62,3 +62,5 @@ require (
 	google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2 // indirect
 	gorm.io/driver/postgres v1.1.2 // indirect
 )
+
+replace github.com/pitabwire/frame v1.7.5 => ../../pitabwire/frame

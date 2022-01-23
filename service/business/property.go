@@ -31,7 +31,9 @@ func (pb *propertyBusiness) ToApi(ctx context.Context, property *models.Property
 
 	if property.LocalityID != "" {
 		localityRepo := repository.NewLocalityRepository(ctx, pb.service)
-		locality, err := localityRepo.GetByID(property.LocalityID)
+
+		var locality models.Locality
+		err := localityRepo.GetByID(property.LocalityID, &locality)
 		if err != nil {
 			return nil, err
 		}

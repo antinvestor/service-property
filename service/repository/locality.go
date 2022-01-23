@@ -8,41 +8,20 @@ import (
 )
 
 type LocalityRepository interface {
-	GetByID(id string) (*models.Locality, error)
-	Delete(id string) error
-	Save(locality frame.BaseModelI) error
+	frame.BaseRepositoryI
 }
 
 type localityRepository struct {
-	baseRepository
+	*frame.BaseRepository
 }
 
 func NewLocalityRepository(ctx context.Context, service *frame.Service) LocalityRepository {
 	return &localityRepository{
-		baseRepository: baseRepository{
-			readDb:  service.DB(ctx, true),
-			writeDb: service.DB(ctx, false),
-			instanceCreator: func() frame.BaseModelI {
+		BaseRepository: frame.NewBaseRepository(
+			service.DB(ctx, true),
+			service.DB(ctx, false),
+			func() frame.BaseModelI {
 				return &models.Locality{}
-			},
-		},
+			}),
 	}
-}
-
-func (repo *localityRepository) Delete(id string) error {
-	locality, err := repo.GetByID(id)
-	if err != nil {
-		return err
-	}
-
-	return repo.writeDb.Delete(locality).Error
-
-}
-
-func (repo *localityRepository) GetByID(id string) (*models.Locality, error) {
-	locality, err := repo.baseRepository.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return locality.(*models.Locality), err
 }

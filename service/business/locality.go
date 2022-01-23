@@ -88,7 +88,8 @@ func (l *localityBusiness) DeleteLocality(ctx context.Context, message *property
 
 	localityRepository := repository.NewLocalityRepository(ctx, l.service)
 
-	locality, err := localityRepository.GetByID(message.GetID())
+	var locality models.Locality
+	err = localityRepository.GetByID(message.GetID(), &locality)
 	if err != nil {
 		return err
 	}
