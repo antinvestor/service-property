@@ -1,9 +1,9 @@
 
 ENV_LOCAL_TEST=\
-  TEST_DATABASE_URL=postgres://ant:secret@localhost:5436/service_notification?sslmode=disable \
+  TEST_DATABASE_URL=postgres://ant:secret@localhost:5437/service_property?sslmode=disable \
   POSTGRES_PASSWORD=secret \
-  POSTGRES_DB=service_notification \
-  POSTGRES_HOST=notification_db \
+  POSTGRES_DB=service_property \
+  POSTGRES_HOST=property_db \
   POSTGRES_USER=ant
 
 SERVICE		?= $(shell basename `go list`)
