@@ -10,7 +10,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
 	github.com/pitabwire/frame v1.7.6
-	github.com/twpayne/go-geom v1.4.1
+	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	gorm.io/datatypes v1.0.2
