@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/antinvestor/apis v1.1.1
-	github.com/antinvestor/service-partition-api v1.0.9
+	github.com/antinvestor/service-partition-api v1.0.27
 	github.com/antinvestor/service-profile-api v1.0.4
 	github.com/antinvestor/service-property-api v1.0.6
 	github.com/golang/mock v1.6.0
