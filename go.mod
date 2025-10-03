@@ -12,7 +12,7 @@ require (
 	github.com/pitabwire/frame v1.7.6
 	github.com/twpayne/go-geom v1.4.1
 	google.golang.org/grpc v1.43.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.36.10
 	gorm.io/datatypes v1.0.2
 	gorm.io/gorm v1.21.16
 )
