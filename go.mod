@@ -14,7 +14,7 @@ require (
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	gorm.io/datatypes v1.0.2
-	gorm.io/gorm v1.21.16
+	gorm.io/gorm v1.31.1
 )
 
 require (
