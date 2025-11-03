@@ -3,7 +3,7 @@ module github.com/antinvestor/service-property
 go 1.17
 
 require (
-	github.com/antinvestor/apis v1.1.1
+	github.com/antinvestor/apis v1.47.11
 	github.com/antinvestor/service-partition-api v1.0.9
 	github.com/antinvestor/service-profile-api v1.0.4
 	github.com/antinvestor/service-property-api v1.0.6
