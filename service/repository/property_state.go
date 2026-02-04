@@ -2,59 +2,59 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/antinvestor/service-property/service/models"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 	"gorm.io/gorm"
 )
 
 type PropertyStateRepository interface {
-	GetByID(id string) (*models.PropertyState, error)
-	GetByPropertyID(id string) (*models.PropertyState, error)
-	GetAllByPropertyID(id string) ([]models.PropertyState, error)
-	Save(propertyState *models.PropertyState) error
+	GetByID(ctx context.Context, id string) (*models.PropertyState, error)
+	GetByPropertyID(ctx context.Context, id string) (*models.PropertyState, error)
+	GetAllByPropertyID(ctx context.Context, id string) ([]models.PropertyState, error)
+	Save(ctx context.Context, propertyState *models.PropertyState) error
 }
 
 type propertyStateRepository struct {
-	readDb  *gorm.DB
-	writeDb *gorm.DB
+	dbPool pool.Pool
 }
 
-func NewPropertyStateRepository(ctx context.Context, service *frame.Service) PropertyStateRepository {
-	return &propertyStateRepository{readDb: service.DB(ctx, true), writeDb: service.DB(ctx, false)}
+func NewPropertyStateRepository(dbPool pool.Pool) PropertyStateRepository {
+	return &propertyStateRepository{dbPool: dbPool}
 }
 
-func (repo *propertyStateRepository) GetByPropertyID(id string) (*models.PropertyState, error) {
+func (repo *propertyStateRepository) GetByPropertyID(ctx context.Context, id string) (*models.PropertyState, error) {
 	var propertyState models.PropertyState
-	err := repo.readDb.Last(&propertyState, "property_id = ?", id).Error
+	err := repo.dbPool.DB(ctx, true).Last(&propertyState, "property_id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &propertyState, nil
 }
 
-func (repo *propertyStateRepository) GetAllByPropertyID(id string) ([]models.PropertyState, error) {
+func (repo *propertyStateRepository) GetAllByPropertyID(ctx context.Context, id string) ([]models.PropertyState, error) {
 	var propertyStates []models.PropertyState
-	err := repo.readDb.Find(&propertyStates, "property_id = ?", id).Error
+	err := repo.dbPool.DB(ctx, true).Find(&propertyStates, "property_id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return propertyStates, nil
 }
 
-func (repo *propertyStateRepository) GetByID(id string) (*models.PropertyState, error) {
+func (repo *propertyStateRepository) GetByID(ctx context.Context, id string) (*models.PropertyState, error) {
 	propertyState := models.PropertyState{}
-	err := repo.readDb.First(&propertyState, "id = ?", id).Error
+	err := repo.dbPool.DB(ctx, true).First(&propertyState, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &propertyState, nil
 }
 
-func (repo *propertyStateRepository) Save(propertyState *models.PropertyState) error {
-	err := repo.writeDb.Save(propertyState).Error
-	if frame.DBErrorIsRecordNotFound(err) {
-		return repo.writeDb.Create(propertyState).Error
+func (repo *propertyStateRepository) Save(ctx context.Context, propertyState *models.PropertyState) error {
+	err := repo.dbPool.DB(ctx, false).Save(propertyState).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return repo.dbPool.DB(ctx, false).Create(propertyState).Error
 	}
-	return nil
+	return err
 }

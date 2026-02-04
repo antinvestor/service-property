@@ -2,109 +2,77 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/antinvestor/apis"
-	partitionV1 "github.com/antinvestor/service-partition-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
+	"log/slog"
+
+	propertyv1connect "buf.build/gen/go/antinvestor/property/connectrpc/go/property/v1/propertyv1connect"
+	"connectrpc.com/connect"
 	"github.com/antinvestor/service-property/config"
-	"github.com/antinvestor/service-property/service/events"
 	"github.com/antinvestor/service-property/service/handlers"
 	"github.com/antinvestor/service-property/service/models"
-	"os"
-	"strconv"
-
-	profileV1 "github.com/antinvestor/service-profile-api"
-	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	grpcctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	"github.com/pitabwire/frame"
-	"google.golang.org/grpc"
+	fconfig "github.com/pitabwire/frame/config"
+	"github.com/pitabwire/frame/datastore"
+	connectinterceptors "github.com/pitabwire/frame/security/interceptors/connect"
 )
 
 func main() {
 
-	serviceName := "service_notification"
+	tmpCtx := context.Background()
 
-	ctx := context.Background()
-
-	datasource := frame.GetEnv(config.EnvDatabaseUrl, "postgres://ant:@nt@localhost/service_notification")
-	mainDb := frame.Datastore(ctx, datasource, false)
-
-	readOnlydatasource := frame.GetEnv(config.EnvReplicaDatabaseUrl, datasource)
-	readDb := frame.Datastore(ctx, readOnlydatasource, true)
-
-	service := frame.NewService(serviceName, mainDb, readDb)
-	log := service.L()
-
-	isMigration, err := strconv.ParseBool(frame.GetEnv(config.EnvMigrate, "false"))
+	cfg, err := fconfig.LoadWithOIDC[config.PropertyConfig](tmpCtx)
 	if err != nil {
-		isMigration = false
-	}
-
-	stdArgs := os.Args[1:]
-	if (len(stdArgs) > 0 && stdArgs[0] == "migrate") || isMigration {
-
-		migrationPath := frame.GetEnv(config.EnvMigrationPath, "./migrations/0001")
-		err := service.MigrateDatastore(ctx, migrationPath,
-			&models.PropertyType{}, &models.Locality{}, models.PropertyState{},
-			models.Property{}, models.Subscription{})
-
-		if err != nil {
-			log.Fatal("main -- Could not migrate successfully because : %v", err)
-		}
+		slog.Error("main -- could not load config", "error", err)
 		return
-
 	}
 
-	profileServiceUrl := frame.GetEnv(config.EnvProfileServiceUri, "127.0.0.1:7005")
-	profileCli, err := profileV1.NewProfileClient(ctx, apis.WithEndpoint(profileServiceUrl))
-	if err != nil {
-		log.Fatal("main -- Could not setup profile client : %v", err)
-	}
-
-	partitionServiceUrl := frame.GetEnv(config.EnvPartitionServiceUri, "127.0.0.1:7003")
-	partitionCli, err := partitionV1.NewPartitionsClient(ctx, apis.WithEndpoint(partitionServiceUrl))
-	if err != nil {
-		log.Fatal("main -- Could not setup partition client : %v", err)
-	}
-
-	var serviceOptions []frame.Option
-
-	jwtAudience := frame.GetEnv(config.EnvOauth2JwtVerifyAudience, serviceName)
-	jwtIssuer := frame.GetEnv(config.EnvOauth2JwtVerifyIssuer, "")
-
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
-			grpcctxtags.UnaryServerInterceptor(),
-			grpcrecovery.UnaryServerInterceptor(),
-			frame.UnaryAuthInterceptor(jwtAudience, jwtIssuer),
-		)),
-		grpc.StreamInterceptor(frame.StreamAuthInterceptor(jwtAudience, jwtIssuer)),
+	ctx, svc := frame.NewServiceWithContext(tmpCtx,
+		frame.WithConfig(&cfg),
+		frame.WithRegisterServerOauth2Client(),
+		frame.WithDatastore(),
 	)
 
+	dbManager := svc.DatastoreManager()
+
+	dbPool := dbManager.GetPool(ctx, datastore.DefaultPoolName)
+	if dbPool == nil {
+		slog.Error("main -- database pool is nil")
+		return
+	}
+
+	if cfg.DoDatabaseMigrate() {
+		migrationPool := dbManager.GetPool(ctx, datastore.DefaultMigrationPoolName)
+		if migrationPool == nil {
+			migrationPool = dbPool
+		}
+		err = dbManager.Migrate(ctx, migrationPool, cfg.GetDatabaseMigrationPath(),
+			models.PropertyType{}, models.Locality{}, models.PropertyState{},
+			models.Property{}, models.Subscription{})
+		if err != nil {
+			slog.Error("main -- could not migrate", "error", err)
+			return
+		}
+		return
+	}
+
+	sm := svc.SecurityManager()
+
 	implementation := &handlers.PropertyServer{
-		Service:      service,
-		ProfileCli:   profileCli,
-		PartitionCli: partitionCli,
+		DBPool: dbPool,
 	}
 
-	propertyV1.RegisterPropertyServiceServer(grpcServer, implementation)
-
-	grpcServerOpt := frame.GrpcServer(grpcServer)
-	serviceOptions = append(serviceOptions, grpcServerOpt)
-
-	serviceOptions = append(serviceOptions,
-		frame.RegisterEvents(
-			&events.PropertyStateSave{Service: service}))
-
-	service.Init(serviceOptions...)
-
-	serverPort := frame.GetEnv(config.EnvServerPort, "7020")
-
-	log.Info(" main -- Initiating server operations on : %s", serverPort)
-	err = implementation.Service.Run(ctx, fmt.Sprintf(":%v", serverPort))
+	defaultInterceptorList, err := connectinterceptors.DefaultList(ctx, sm.GetAuthenticator(ctx))
 	if err != nil {
-		log.Fatal("main -- Could not run Server : %v", err)
+		slog.Error("main -- could not create default interceptors", "error", err)
+		return
 	}
 
+	_, serverHandler := propertyv1connect.NewPropertyServiceHandler(
+		implementation, connect.WithInterceptors(defaultInterceptorList...))
+
+	svc.Init(ctx, frame.WithHTTPHandler(serverHandler))
+
+	err = svc.Run(ctx, "")
+	if err != nil {
+		slog.Error("main -- could not run server", "error", err)
+	}
 }

@@ -2,26 +2,48 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/antinvestor/service-property/service/models"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
+	"gorm.io/gorm"
 )
 
 type LocalityRepository interface {
-	frame.BaseRepositoryI
+	GetByID(ctx context.Context, id string) (*models.Locality, error)
+	Save(ctx context.Context, locality *models.Locality) error
+	Delete(ctx context.Context, id string) error
 }
 
 type localityRepository struct {
-	*frame.BaseRepository
+	dbPool pool.Pool
 }
 
-func NewLocalityRepository(ctx context.Context, service *frame.Service) LocalityRepository {
-	return &localityRepository{
-		BaseRepository: frame.NewBaseRepository(
-			service.DB(ctx, true),
-			service.DB(ctx, false),
-			func() frame.BaseModelI {
-				return &models.Locality{}
-			}),
+func NewLocalityRepository(dbPool pool.Pool) LocalityRepository {
+	return &localityRepository{dbPool: dbPool}
+}
+
+func (repo *localityRepository) GetByID(ctx context.Context, id string) (*models.Locality, error) {
+	locality := models.Locality{}
+	err := repo.dbPool.DB(ctx, true).First(&locality, "id = ?", id).Error
+	if err != nil {
+		return nil, err
 	}
+	return &locality, nil
+}
+
+func (repo *localityRepository) Save(ctx context.Context, locality *models.Locality) error {
+	err := repo.dbPool.DB(ctx, false).Save(locality).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return repo.dbPool.DB(ctx, false).Create(locality).Error
+	}
+	return err
+}
+
+func (repo *localityRepository) Delete(ctx context.Context, id string) error {
+	locality, err := repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	return repo.dbPool.DB(ctx, false).Delete(locality).Error
 }

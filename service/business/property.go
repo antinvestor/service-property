@@ -2,38 +2,35 @@ package business
 
 import (
 	"context"
-	"github.com/antinvestor/apis/common"
-	profileV1 "github.com/antinvestor/service-profile-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
-	"github.com/antinvestor/service-property/service/events"
+	"log/slog"
+
+	commonv1 "buf.build/gen/go/antinvestor/common/protocolbuffers/go/common/v1"
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
+	"connectrpc.com/connect"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/antinvestor/service-property/service/repository"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"runtime"
 )
 
 type propertyBusiness struct {
-	service    *frame.Service
-	profileCli *profileV1.ProfileClient
+	dbPool pool.Pool
 }
 
-func (pb *propertyBusiness) ToApi(ctx context.Context, property *models.Property) (*propertyV1.Property, error) {
+func (pb *propertyBusiness) ToApi(ctx context.Context, property *models.Property) (*propertyv1.Property, error) {
 
-	apiProperty := propertyV1.Property{
-		ID:          property.GetID(),
-		ParentID:    property.ParentID,
+	apiProperty := propertyv1.Property{
+		Id:          property.GetID(),
+		ParentId:    property.ParentID,
 		Name:        property.Name,
 		Description: property.Description,
-		Extra:       frame.DBPropertiesToMap(property.Extra),
+		Extra:       models.JsonMapToStruct(property.Extra),
 		StartedAt:   timestamppb.New(property.StartedAt),
 	}
 
 	if property.LocalityID != "" {
-		localityRepo := repository.NewLocalityRepository(ctx, pb.service)
-
-		var locality models.Locality
-		err := localityRepo.GetByID(property.LocalityID, &locality)
+		localityRepo := repository.NewLocalityRepository(pb.dbPool)
+		locality, err := localityRepo.GetByID(ctx, property.LocalityID)
 		if err != nil {
 			return nil, err
 		}
@@ -41,82 +38,64 @@ func (pb *propertyBusiness) ToApi(ctx context.Context, property *models.Property
 	}
 
 	if property.PropertyTypeID != "" {
-		pTypeRepo := repository.NewPropertyTypeRepository(ctx, pb.service)
-		propertyType, err := pTypeRepo.GetByID(property.PropertyTypeID)
+		pTypeRepo := repository.NewPropertyTypeRepository(pb.dbPool)
+		propertyType, err := pTypeRepo.GetByID(ctx, property.PropertyTypeID)
 		if err != nil {
 			return nil, err
 		}
-
 		apiProperty.PropertyType = propertyType.ToApi()
 	}
 
 	return &apiProperty, nil
 }
 
-func (pb *propertyBusiness) CreateProperty(ctx context.Context, message *propertyV1.Property) (*propertyV1.PropertyState, error) {
+func (pb *propertyBusiness) CreateProperty(ctx context.Context, message *propertyv1.Property) (*propertyv1.Property, error) {
 
-	err := message.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	propertyRepo := repository.NewPropertyRepository(ctx, pb.service)
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
 
 	property := models.Property{
-
 		Name:           message.GetName(),
-		ParentID:       message.GetParentID(),
-		PropertyTypeID: message.GetPropertyType().GetID(),
+		ParentID:       message.GetParentId(),
+		PropertyTypeID: message.GetPropertyType().GetId(),
 		Description:    message.GetDescription(),
-		Extra:          frame.DBPropertiesFromMap(message.GetExtra()),
+		Extra:          models.StructToJSONMap(message.GetExtra()),
 		StartedAt:      message.GetStartedAt().AsTime(),
 	}
 
-	if property.ValidXID(message.GetID()) {
-		property.ID = message.GetID()
+	if property.ValidXID(message.GetId()) {
+		property.ID = message.GetId()
 	} else {
 		property.GenID(ctx)
 	}
 
-	err = propertyRepo.Save(&property)
+	err := propertyRepo.Save(ctx, &property)
 	if err != nil {
 		return nil, err
 	}
 
-	propertyStateRepo := repository.NewPropertyStateRepository(ctx, pb.service)
+	propertyStateRepo := repository.NewPropertyStateRepository(pb.dbPool)
 
 	propertyState := models.PropertyState{
 		PropertyID: property.GetID(),
-		State:      int32(common.STATE_CREATED.Number()),
-		Status:     int32(common.STATUS_QUEUED.Number()),
-		Name:       common.STATE_CREATED.String(),
+		State:      int32(commonv1.STATE_CREATED.Number()),
+		Status:     int32(commonv1.STATUS_QUEUED.Number()),
+		Name:       commonv1.STATE_CREATED.String(),
 	}
 
 	propertyState.GenID(ctx)
 
-	err = propertyStateRepo.Save(&propertyState)
+	err = propertyStateRepo.Save(ctx, &propertyState)
 	if err != nil {
 		return nil, err
 	}
-	//// Queue out notification status for further processing
-	//eventState := events.PropertyStateSave{}
-	//err = pb.service.Emit(ctx, eventState.Name(), propertyState)
-	//if err != nil {
-	//	return nil, err
-	//}
 
-	return propertyState.ToApi(), nil
+	return pb.ToApi(ctx, &property)
 }
 
-func (pb *propertyBusiness) UpdateProperty(ctx context.Context, message *propertyV1.UpdateRequest) (*propertyV1.Property, error) {
+func (pb *propertyBusiness) UpdateProperty(ctx context.Context, message *propertyv1.UpdatePropertyRequest) (*propertyv1.Property, error) {
 
-	err := message.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	propertyRepo := repository.NewPropertyRepository(ctx, pb.service)
-	property, err := propertyRepo.GetByID(message.GetID())
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
+	property, err := propertyRepo.GetByID(ctx, message.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -130,16 +109,18 @@ func (pb *propertyBusiness) UpdateProperty(ctx context.Context, message *propert
 	}
 
 	if message.GetExtras() != nil {
-		extras := frame.DBPropertiesToMap(property.Extra)
-		for key, val := range message.GetExtras() {
-
-			extras[key] = val
-
+		extras := models.JsonMapToStruct(property.Extra)
+		if extras == nil {
+			extras = message.GetExtras()
+		} else {
+			for key, val := range message.GetExtras().GetFields() {
+				extras.Fields[key] = val
+			}
 		}
-		property.Extra = frame.DBPropertiesFromMap(extras)
+		property.Extra = models.StructToJSONMap(extras)
 	}
 
-	err = propertyRepo.Save(property)
+	err = propertyRepo.Save(ctx, property)
 	if err != nil {
 		return nil, err
 	}
@@ -147,36 +128,50 @@ func (pb *propertyBusiness) UpdateProperty(ctx context.Context, message *propert
 	return pb.ToApi(ctx, property)
 }
 
-func (pb *propertyBusiness) DeleteProperty(ctx context.Context, message *propertyV1.RequestID) (*propertyV1.PropertyState, error) {
+func (pb *propertyBusiness) DeleteProperty(ctx context.Context, id string) error {
 
-	err := message.Validate()
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
+	property, err := propertyRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	propertyRepository := repository.NewPropertyRepository(ctx, pb.service)
-	property, err := propertyRepository.GetByID(message.GetID())
+	err = propertyRepo.Delete(ctx, property.GetID())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = propertyRepository.Delete(property.ID)
-	if err != nil {
-		return nil, err
-	}
+	propertyStateRepo := repository.NewPropertyStateRepository(pb.dbPool)
 
 	propertyState := models.PropertyState{
 		PropertyID: property.GetID(),
-		State:      int32(common.STATE_CREATED.Number()),
-		Status:     int32(common.STATUS_QUEUED.Number()),
-		Name:       common.STATE_CREATED.String(),
+		State:      int32(commonv1.STATE_DELETED.Number()),
+		Status:     int32(commonv1.STATUS_QUEUED.Number()),
+		Name:       commonv1.STATE_DELETED.String(),
 	}
 
 	propertyState.GenID(ctx)
 
-	// Queue property state for further processing
-	eventState := events.PropertyStateSave{}
-	err = pb.service.Emit(ctx, eventState.Name(), propertyState)
+	err = propertyStateRepo.Save(ctx, &propertyState)
+	if err != nil {
+		return err
+	}
+
+	property.StateID = propertyState.GetID()
+	return propertyRepo.Save(ctx, property)
+}
+
+func (pb *propertyBusiness) StateOfProperty(ctx context.Context, id string) (*propertyv1.PropertyState, error) {
+
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
+	property, err := propertyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	propertyStateRepo := repository.NewPropertyStateRepository(pb.dbPool)
+
+	propertyState, err := propertyStateRepo.GetByPropertyID(ctx, property.GetID())
 	if err != nil {
 		return nil, err
 	}
@@ -184,86 +179,63 @@ func (pb *propertyBusiness) DeleteProperty(ctx context.Context, message *propert
 	return propertyState.ToApi(), nil
 }
 
-func (pb *propertyBusiness) StateOfProperty(ctx context.Context, message *propertyV1.RequestID) (*propertyV1.PropertyState, error) {
+func (pb *propertyBusiness) HistoryOfProperty(ctx context.Context, id string, stream *connect.ServerStream[propertyv1.HistoryOfPropertyResponse]) error {
 
-	err := message.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	propertyRepository := repository.NewPropertyRepository(ctx, pb.service)
-	property, err := propertyRepository.GetByID(message.GetID())
-	if err != nil {
-		return nil, err
-	}
-
-	propertyStateRepository := repository.NewPropertyStateRepository(ctx, pb.service)
-
-	propertyState, err := propertyStateRepository.GetByPropertyID(property.GetID())
-	if err != nil {
-		return nil, err
-	}
-
-	return propertyState.ToApi(), nil
-}
-
-func (pb *propertyBusiness) HistoryOfProperty(message *propertyV1.RequestID, stream propertyV1.PropertyService_HistoryOfPropertyServer) error {
-
-	err := message.Validate()
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
+	property, err := propertyRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	propertyRepository := repository.NewPropertyRepository(stream.Context(), pb.service)
-	property, err := propertyRepository.GetByID(message.GetID())
+	propertyStateRepo := repository.NewPropertyStateRepository(pb.dbPool)
+
+	propertyStateList, err := propertyStateRepo.GetAllByPropertyID(ctx, property.GetID())
 	if err != nil {
 		return err
 	}
 
-	propertyStateRepository := repository.NewPropertyStateRepository(stream.Context(), pb.service)
-
-	propertyStateList, err := propertyStateRepository.GetAllByPropertyID(property.GetID())
-	if err != nil {
-		return err
-	}
-
+	responses := make([]*propertyv1.PropertyState, 0, len(propertyStateList))
 	for _, propertyState := range propertyStateList {
-		err := stream.Send(propertyState.ToApi())
+		responses = append(responses, propertyState.ToApi())
+	}
+
+	if len(responses) > 0 {
+		err = stream.Send(&propertyv1.HistoryOfPropertyResponse{
+			Data: responses,
+		})
 		if err != nil {
-			pb.service.L().Info(" HistoryOfProperty -- unable to send a result see %v", err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (pb *propertyBusiness) SearchProperty(search *propertyV1.SearchRequest, stream propertyV1.PropertyService_SearchPropertyServer) error {
+func (pb *propertyBusiness) SearchProperty(ctx context.Context, request *propertyv1.SearchPropertyRequest, stream *connect.ServerStream[propertyv1.SearchPropertyResponse]) error {
 
-	err := search.Validate()
+	propertyRepo := repository.NewPropertyRepository(pb.dbPool)
+
+	propertyList, err := propertyRepo.Search(ctx, request.GetQuery())
 	if err != nil {
 		return err
 	}
 
-	propertyRepository := repository.NewPropertyRepository(stream.Context(), pb.service)
-
-	propertyList, err := propertyRepository.Search(search.GetQuery())
-	if err != nil {
-		return err
-	}
-
+	responses := make([]*propertyv1.Property, 0, len(propertyList))
 	for _, property := range propertyList {
-
-		apiProperty, err := pb.ToApi(stream.Context(), &property)
+		apiProperty, err := pb.ToApi(ctx, &property)
 		if err != nil {
-			buf := make([]byte, 1<<16)
-			runtime.Stack(buf, true)
-			pb.service.L().Info(" SearchProperty -- unable to convert a result : %s", buf)
+			slog.Info("SearchProperty -- unable to convert a result", "error", err)
+			continue
 		}
-		err = stream.Send(apiProperty)
+		responses = append(responses, apiProperty)
+	}
+
+	if len(responses) > 0 {
+		err = stream.Send(&propertyv1.SearchPropertyResponse{
+			Data: responses,
+		})
 		if err != nil {
-			buf := make([]byte, 1<<16)
-			runtime.Stack(buf, true)
-			pb.service.L().Info(" SearchProperty -- unable to send a result : %s", buf)
+			return err
 		}
 	}
 

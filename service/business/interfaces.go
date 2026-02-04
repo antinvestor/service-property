@@ -2,82 +2,73 @@ package business
 
 import (
 	"context"
-	partapi "github.com/antinvestor/service-partition-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
 
-	profileV1 "github.com/antinvestor/service-profile-api"
-	"github.com/pitabwire/frame"
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
+	"connectrpc.com/connect"
+	"github.com/pitabwire/frame/datastore/pool"
 )
 
 type PropertyBusiness interface {
-	CreateProperty(context.Context, *propertyV1.Property) (*propertyV1.PropertyState, error)
-	UpdateProperty(context.Context, *propertyV1.UpdateRequest) (*propertyV1.Property, error)
-	DeleteProperty(context.Context, *propertyV1.RequestID) (*propertyV1.PropertyState, error)
-	StateOfProperty(context.Context, *propertyV1.RequestID) (*propertyV1.PropertyState, error)
-	HistoryOfProperty(*propertyV1.RequestID, propertyV1.PropertyService_HistoryOfPropertyServer) error
-	SearchProperty(*propertyV1.SearchRequest, propertyV1.PropertyService_SearchPropertyServer) error
+	CreateProperty(ctx context.Context, message *propertyv1.Property) (*propertyv1.Property, error)
+	UpdateProperty(ctx context.Context, message *propertyv1.UpdatePropertyRequest) (*propertyv1.Property, error)
+	DeleteProperty(ctx context.Context, id string) error
+	StateOfProperty(ctx context.Context, id string) (*propertyv1.PropertyState, error)
+	HistoryOfProperty(ctx context.Context, id string, stream *connect.ServerStream[propertyv1.HistoryOfPropertyResponse]) error
+	SearchProperty(ctx context.Context, request *propertyv1.SearchPropertyRequest, stream *connect.ServerStream[propertyv1.SearchPropertyResponse]) error
 }
 
-func NewPropertyBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient, partitionCli *partapi.PartitionClient) (PropertyBusiness, error) {
-
-	if service == nil || profileCli == nil || partitionCli == nil {
+func NewPropertyBusiness(dbPool pool.Pool) (PropertyBusiness, error) {
+	if dbPool == nil {
 		return nil, ErrorInitializationFail
 	}
 
 	return &propertyBusiness{
-		service:    service,
-		profileCli: profileCli,
+		dbPool: dbPool,
 	}, nil
 }
 
 type PropertyTypeBusiness interface {
-	AddPropertyType(context.Context, *propertyV1.PropertyType) (*propertyV1.PropertyType, error)
-	ListPropertyType(*propertyV1.SearchRequest, propertyV1.PropertyService_ListTypeServer) error
+	AddPropertyType(ctx context.Context, message *propertyv1.PropertyType) (*propertyv1.PropertyType, error)
+	ListPropertyType(ctx context.Context, request *propertyv1.ListPropertyTypeRequest, stream *connect.ServerStream[propertyv1.ListPropertyTypeResponse]) error
 }
 
-func NewPropertyTypeBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (PropertyTypeBusiness, error) {
-
-	if service == nil || profileCli == nil {
+func NewPropertyTypeBusiness(dbPool pool.Pool) (PropertyTypeBusiness, error) {
+	if dbPool == nil {
 		return nil, ErrorInitializationFail
 	}
 
 	return &propertyTypeBusiness{
-		service:    service,
-		profileCli: profileCli,
+		dbPool: dbPool,
 	}, nil
 }
 
 type LocalityBusiness interface {
-	AddLocality(context.Context, *propertyV1.Locality) (*propertyV1.Locality, error)
-	DeleteLocality(context.Context, *propertyV1.RequestID) error
+	AddLocality(ctx context.Context, message *propertyv1.Locality) (*propertyv1.Locality, error)
+	DeleteLocality(ctx context.Context, id string) error
 }
 
-func NewLocalityBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (LocalityBusiness, error) {
-
-	if service == nil || profileCli == nil {
+func NewLocalityBusiness(dbPool pool.Pool) (LocalityBusiness, error) {
+	if dbPool == nil {
 		return nil, ErrorInitializationFail
 	}
 
 	return &localityBusiness{
-		service:    service,
-		profileCli: profileCli,
+		dbPool: dbPool,
 	}, nil
 }
 
 type SubscriptionBusiness interface {
-	ListSubscriptions(*propertyV1.SubscriptionListRequest, propertyV1.PropertyService_ListSubscriptionsServer) error
-	AddSubscription(context.Context, *propertyV1.Subscription) (*propertyV1.Subscription, error)
-	DeleteSubscription(context.Context, *propertyV1.RequestID) error
+	ListSubscription(ctx context.Context, request *propertyv1.ListSubscriptionRequest, stream *connect.ServerStream[propertyv1.ListSubscriptionResponse]) error
+	AddSubscription(ctx context.Context, message *propertyv1.Subscription) (*propertyv1.Subscription, error)
+	DeleteSubscription(ctx context.Context, id string) error
 }
 
-func NewSubscriptionBusiness(ctx context.Context, service *frame.Service, profileCli *profileV1.ProfileClient) (SubscriptionBusiness, error) {
-
-	if service == nil || profileCli == nil {
+func NewSubscriptionBusiness(dbPool pool.Pool) (SubscriptionBusiness, error) {
+	if dbPool == nil {
 		return nil, ErrorInitializationFail
 	}
 
 	return &subscriptionBusiness{
-		service:    service,
-		profileCli: profileCli,
+		dbPool: dbPool,
 	}, nil
 }

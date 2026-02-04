@@ -1,18 +1,17 @@
 package models
 
 import (
-	"github.com/antinvestor/apis/common"
-	propertyV1 "github.com/antinvestor/service-property-api"
+	commonv1 "buf.build/gen/go/antinvestor/common/protocolbuffers/go/common/v1"
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
+	"github.com/pitabwire/frame/data"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
-
-	"github.com/pitabwire/frame"
 	"gorm.io/datatypes"
+	"time"
 )
 
-// Locality Table holds the location data relating to our properties
 type Locality struct {
-	frame.BaseModel
+	data.BaseModel
 
 	ParentID    string `gorm:"type:varchar(50)"`
 	Name        string `gorm:"type:varchar(50)"`
@@ -22,47 +21,45 @@ type Locality struct {
 	Extra       datatypes.JSONMap
 }
 
-func (l *Locality) ToApi() *propertyV1.Locality {
-
-	locality := &propertyV1.Locality{
-		ID:          l.GetID(),
-		ParentID:    l.ParentID,
+func (l *Locality) ToApi() *propertyv1.Locality {
+	locality := &propertyv1.Locality{
+		Id:          l.GetID(),
+		ParentId:    l.ParentID,
 		Name:        l.Name,
 		Description: l.Description,
-		Extras:      frame.DBPropertiesToMap(l.Extra),
+		Extras:      JsonMapToStruct(l.Extra),
 		CreatedAt:   timestamppb.New(l.CreatedAt),
 	}
 
 	if l.Boundary.String() != "{}" {
-		locality.Feature = &propertyV1.Locality_Boundary{Boundary: l.Boundary.String()}
+		locality.Feature = &propertyv1.Locality_Boundary{Boundary: l.Boundary.String()}
 	} else {
-
-		locality.Feature = &propertyV1.Locality_Point{Point: l.Point.String()}
+		locality.Feature = &propertyv1.Locality_Point{Point: l.Point.String()}
 	}
 
 	return locality
 }
 
 type PropertyType struct {
-	frame.BaseModel
+	data.BaseModel
 
 	Name        string `gorm:"type:varchar(250)"`
 	Description string `gorm:"type:text"`
 	Extra       datatypes.JSONMap
 }
 
-func (pt *PropertyType) ToApi() *propertyV1.PropertyType {
-	return &propertyV1.PropertyType{
-		ID:          pt.GetID(),
+func (pt *PropertyType) ToApi() *propertyv1.PropertyType {
+	return &propertyv1.PropertyType{
+		Id:          pt.GetID(),
 		Name:        pt.Name,
 		Description: pt.Description,
-		Extra:       frame.DBPropertiesToMap(pt.Extra),
+		Extra:       JsonMapToStruct(pt.Extra),
 		CreatedAt:   timestamppb.New(pt.CreatedAt),
 	}
 }
 
 type Subscription struct {
-	frame.BaseModel
+	data.BaseModel
 
 	PropertyID  string `gorm:"type:varchar(50)"`
 	ProfileID   string `gorm:"type:varchar(50)"`
@@ -72,21 +69,20 @@ type Subscription struct {
 	ExpiresAt   time.Time
 }
 
-func (s *Subscription) ToApi() *propertyV1.Subscription {
-
-	return &propertyV1.Subscription{
-		ID:         s.GetID(),
-		ProfileID:  s.ProfileID,
-		PropertyID: s.PropertyID,
+func (s *Subscription) ToApi() *propertyv1.Subscription {
+	return &propertyv1.Subscription{
+		Id:         s.GetID(),
+		ProfileId:  s.ProfileID,
+		PropertyId: s.PropertyID,
 		Role:       s.Role,
-		Extra:      frame.DBPropertiesToMap(s.Extra),
+		Extra:      JsonMapToStruct(s.Extra),
 		ExpiresAt:  timestamppb.New(s.ExpiresAt),
 		CreatedAt:  timestamppb.New(s.CreatedAt),
 	}
 }
 
 type Property struct {
-	frame.BaseModel
+	data.BaseModel
 
 	ParentID string `gorm:"type:varchar(50)"`
 
@@ -102,7 +98,7 @@ type Property struct {
 }
 
 type PropertyState struct {
-	frame.BaseModel
+	data.BaseModel
 	PropertyID string `gorm:"type:varchar(50)"`
 
 	Name        string `gorm:"type:varchar(250)"`
@@ -112,15 +108,30 @@ type PropertyState struct {
 	Status      int32
 }
 
-func (ps *PropertyState) ToApi() *propertyV1.PropertyState {
-	return &propertyV1.PropertyState{
-		ID:          ps.GetID(),
-		PropertyID:  ps.PropertyID,
+func (ps *PropertyState) ToApi() *propertyv1.PropertyState {
+	return &propertyv1.PropertyState{
+		Id:          ps.GetID(),
+		Propertyid:  ps.PropertyID,
 		Name:        ps.Name,
 		Description: ps.Description,
-		Extras:      frame.DBPropertiesToMap(ps.Extra),
-		Status:      common.STATUS(ps.Status),
-		State:       common.STATE(ps.State),
+		Extras:      JsonMapToStruct(ps.Extra),
+		Status:      commonv1.STATUS(ps.Status),
+		State:       commonv1.STATE(ps.State),
 		CreatedAt:   timestamppb.New(ps.CreatedAt),
 	}
+}
+
+func JsonMapToStruct(m datatypes.JSONMap) *structpb.Struct {
+	if m == nil {
+		return nil
+	}
+	s, _ := structpb.NewStruct(map[string]any(m))
+	return s
+}
+
+func StructToJSONMap(s *structpb.Struct) datatypes.JSONMap {
+	if s == nil {
+		return make(datatypes.JSONMap)
+	}
+	return datatypes.JSONMap(s.AsMap())
 }

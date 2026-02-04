@@ -2,58 +2,59 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	"github.com/antinvestor/service-property/service/models"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 	"gorm.io/gorm"
 )
 
 type PropertyTypeRepository interface {
-	GetByID(id string) (*models.PropertyType, error)
-	GetAllByQuery(partitionId string) ([]models.PropertyType, error)
-	Save(propertyType *models.PropertyType) error
+	GetByID(ctx context.Context, id string) (*models.PropertyType, error)
+	GetAllByQuery(ctx context.Context, query string) ([]models.PropertyType, error)
+	Save(ctx context.Context, propertyType *models.PropertyType) error
 }
 
 type propertyTypeRepository struct {
-	readDb  *gorm.DB
-	writeDb *gorm.DB
+	dbPool pool.Pool
 }
 
-func NewPropertyTypeRepository(ctx context.Context, service *frame.Service) PropertyTypeRepository {
-	return &propertyTypeRepository{readDb: service.DB(ctx, true), writeDb: service.DB(ctx, false)}
+func NewPropertyTypeRepository(dbPool pool.Pool) PropertyTypeRepository {
+	return &propertyTypeRepository{dbPool: dbPool}
 }
 
-func (repo *propertyTypeRepository) GetByID(id string) (*models.PropertyType, error) {
+func (repo *propertyTypeRepository) GetByID(ctx context.Context, id string) (*models.PropertyType, error) {
 	propertyType := models.PropertyType{}
-	err := repo.readDb.First(&propertyType, "id = ?", id).Error
+	err := repo.dbPool.DB(ctx, true).First(&propertyType, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &propertyType, nil
 }
 
-func (repo *propertyTypeRepository) GetAllByQuery(query string) ([]models.PropertyType, error) {
-	var routes []models.PropertyType
+func (repo *propertyTypeRepository) GetAllByQuery(ctx context.Context, query string) ([]models.PropertyType, error) {
+	var propertyTypes []models.PropertyType
 
 	if query == "" {
-		err := repo.readDb.Find(&routes).Error
+		err := repo.dbPool.DB(ctx, true).Find(&propertyTypes).Error
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		query = fmt.Sprintf("%%%s%%", query)
-		err := repo.readDb.Find(&routes, "name iLike ?", query).Error
+		err := repo.dbPool.DB(ctx, true).Find(&propertyTypes, "name iLike ?", query).Error
 		if err != nil {
 			return nil, err
 		}
 	}
-	return routes, nil
+	return propertyTypes, nil
 }
 
-func (repo *propertyTypeRepository) Save(propertyType *models.PropertyType) error {
-	err := repo.writeDb.Save(propertyType).Error
-	if frame.DBErrorIsRecordNotFound(err) {
-		return repo.writeDb.Create(propertyType).Error
+func (repo *propertyTypeRepository) Save(ctx context.Context, propertyType *models.PropertyType) error {
+	err := repo.dbPool.DB(ctx, false).Save(propertyType).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return repo.dbPool.DB(ctx, false).Create(propertyType).Error
 	}
-	return nil
+	return err
 }

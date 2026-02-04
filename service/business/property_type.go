@@ -2,40 +2,36 @@ package business
 
 import (
 	"context"
-	profileV1 "github.com/antinvestor/service-profile-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
+	"log/slog"
+
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
+	"connectrpc.com/connect"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/antinvestor/service-property/service/repository"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 )
 
 type propertyTypeBusiness struct {
-	service    *frame.Service
-	profileCli *profileV1.ProfileClient
+	dbPool pool.Pool
 }
 
-func (pt *propertyTypeBusiness) AddPropertyType(ctx context.Context, message *propertyV1.PropertyType) (*propertyV1.PropertyType, error) {
+func (pt *propertyTypeBusiness) AddPropertyType(ctx context.Context, message *propertyv1.PropertyType) (*propertyv1.PropertyType, error) {
 
-	err := message.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	propertyTypeRepo := repository.NewPropertyTypeRepository(ctx, pt.service)
+	propertyTypeRepo := repository.NewPropertyTypeRepository(pt.dbPool)
 
 	propertyType := models.PropertyType{
 		Name:        message.GetName(),
 		Description: message.GetDescription(),
-		Extra:       frame.DBPropertiesFromMap(message.GetExtra()),
+		Extra:       models.StructToJSONMap(message.GetExtra()),
 	}
 
-	if propertyType.ValidXID(message.GetID()) {
-		propertyType.ID = message.GetID()
+	if propertyType.ValidXID(message.GetId()) {
+		propertyType.ID = message.GetId()
 	} else {
 		propertyType.GenID(ctx)
 	}
 
-	err = propertyTypeRepo.Save(&propertyType)
+	err := propertyTypeRepo.Save(ctx, &propertyType)
 	if err != nil {
 		return nil, err
 	}
@@ -43,24 +39,26 @@ func (pt *propertyTypeBusiness) AddPropertyType(ctx context.Context, message *pr
 	return propertyType.ToApi(), nil
 }
 
-func (pt *propertyTypeBusiness) ListPropertyType(message *propertyV1.SearchRequest, stream propertyV1.PropertyService_ListTypeServer) error {
+func (pt *propertyTypeBusiness) ListPropertyType(ctx context.Context, request *propertyv1.ListPropertyTypeRequest, stream *connect.ServerStream[propertyv1.ListPropertyTypeResponse]) error {
 
-	err := message.Validate()
+	propertyTypeRepo := repository.NewPropertyTypeRepository(pt.dbPool)
+
+	propertyTypeList, err := propertyTypeRepo.GetAllByQuery(ctx, request.GetQuery())
 	if err != nil {
 		return err
 	}
 
-	propertyTypeRepository := repository.NewPropertyTypeRepository(stream.Context(), pt.service)
-
-	propertyTypeList, err := propertyTypeRepository.GetAllByQuery(message.GetQuery())
-	if err != nil {
-		return err
-	}
-
+	responses := make([]*propertyv1.PropertyType, 0, len(propertyTypeList))
 	for _, propertyType := range propertyTypeList {
-		err := stream.Send(propertyType.ToApi())
+		responses = append(responses, propertyType.ToApi())
+	}
+
+	if len(responses) > 0 {
+		err = stream.Send(&propertyv1.ListPropertyTypeResponse{
+			Data: responses,
+		})
 		if err != nil {
-			pt.service.L().Info(" ListPropertyType -- unable to send a result see %v", err)
+			slog.Info("ListPropertyType -- unable to send a result", "error", err)
 		}
 	}
 

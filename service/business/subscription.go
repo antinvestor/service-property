@@ -2,99 +2,91 @@ package business
 
 import (
 	"context"
-	profileV1 "github.com/antinvestor/service-profile-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
+	"log/slog"
+
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
+	"connectrpc.com/connect"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/antinvestor/service-property/service/repository"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 )
 
 type subscriptionBusiness struct {
-	service    *frame.Service
-	profileCli *profileV1.ProfileClient
+	dbPool pool.Pool
 }
 
-func (s *subscriptionBusiness) AddSubscription(ctx context.Context, message *propertyV1.Subscription) (*propertyV1.Subscription, error) {
+func (s *subscriptionBusiness) AddSubscription(ctx context.Context, message *propertyv1.Subscription) (*propertyv1.Subscription, error) {
 
-	err := message.Validate()
+	propertyRepo := repository.NewPropertyRepository(s.dbPool)
+	subscriptionRepo := repository.NewSubscriptionRepository(s.dbPool)
+
+	property, err := propertyRepo.GetByID(ctx, message.GetPropertyId())
 	if err != nil {
 		return nil, err
 	}
 
-	propertyRepository := repository.NewPropertyRepository(ctx, s.service)
-	subscriptionRepository := repository.NewSubscriptionRepository(ctx, s.service)
-
-	property, err := propertyRepository.GetByID(message.GetPropertyID())
-	if err != nil {
-		return nil, err
-	}
-
-	locality := models.Subscription{
-
+	subscription := models.Subscription{
 		PropertyID: property.GetID(),
-		ProfileID:  message.GetProfileID(),
+		ProfileID:  message.GetProfileId(),
 		Role:       message.GetRole(),
-		Extra:      frame.DBPropertiesFromMap(message.GetExtra()),
+		Extra:      models.StructToJSONMap(message.GetExtra()),
 		ExpiresAt:  message.GetExpiresAt().AsTime(),
 	}
 
-	if locality.ValidXID(message.GetID()) {
-		locality.ID = message.GetID()
+	if subscription.ValidXID(message.GetId()) {
+		subscription.ID = message.GetId()
 	} else {
-		locality.GenID(ctx)
+		subscription.GenID(ctx)
 	}
 
-	err = subscriptionRepository.Save(&locality)
+	err = subscriptionRepo.Save(ctx, &subscription)
 	if err != nil {
 		return nil, err
 	}
 
-	return locality.ToApi(), nil
+	return subscription.ToApi(), nil
 }
 
-func (s *subscriptionBusiness) ListSubscriptions(message *propertyV1.SubscriptionListRequest, stream propertyV1.PropertyService_ListSubscriptionsServer) error {
+func (s *subscriptionBusiness) ListSubscription(ctx context.Context, request *propertyv1.ListSubscriptionRequest, stream *connect.ServerStream[propertyv1.ListSubscriptionResponse]) error {
 
-	err := message.Validate()
+	propertyRepo := repository.NewPropertyRepository(s.dbPool)
+	subscriptionRepo := repository.NewSubscriptionRepository(s.dbPool)
+
+	property, err := propertyRepo.GetByID(ctx, request.GetPropertyId())
 	if err != nil {
 		return err
 	}
 
-	propertyRepository := repository.NewPropertyRepository(stream.Context(), s.service)
-	subscriptionRepository := repository.NewSubscriptionRepository(stream.Context(), s.service)
-
-	property, err := propertyRepository.GetByID(message.GetPropertyID())
+	subscriptionList, err := subscriptionRepo.GetByPropertyID(ctx, property.GetID(), request.GetQuery())
 	if err != nil {
 		return err
 	}
 
-	subscriptionList, err := subscriptionRepository.GetByPropertyID(property.GetID(), message.GetQuery())
-	if err != nil {
-		return err
-	}
-
+	responses := make([]*propertyv1.Subscription, 0, len(subscriptionList))
 	for _, subscription := range subscriptionList {
-		err := stream.Send(subscription.ToApi())
+		responses = append(responses, subscription.ToApi())
+	}
+
+	if len(responses) > 0 {
+		err = stream.Send(&propertyv1.ListSubscriptionResponse{
+			Data: responses,
+		})
 		if err != nil {
-			s.service.L().Info(" ListSubscriptions -- unable to send a result see %v", err)
+			slog.Info("ListSubscription -- unable to send a result", "error", err)
 		}
 	}
 
 	return nil
 }
 
-func (s *subscriptionBusiness) DeleteSubscription(ctx context.Context, message *propertyV1.RequestID) error {
+func (s *subscriptionBusiness) DeleteSubscription(ctx context.Context, id string) error {
 
-	err := message.Validate()
+	subscriptionRepo := repository.NewSubscriptionRepository(s.dbPool)
+
+	subscription, err := subscriptionRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	subscriptionRepository := repository.NewSubscriptionRepository(ctx, s.service)
-
-	subscription, err := subscriptionRepository.GetByID(message.GetID())
-	if err != nil {
-		return err
-	}
-
-	return subscriptionRepository.Delete(subscription.GetID())
+	return subscriptionRepo.Delete(ctx, subscription.GetID())
 }

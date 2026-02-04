@@ -3,39 +3,32 @@ package business
 import (
 	"context"
 	"errors"
-	profileV1 "github.com/antinvestor/service-profile-api"
-	propertyV1 "github.com/antinvestor/service-property-api"
+
+	propertyv1 "buf.build/gen/go/antinvestor/property/protocolbuffers/go/property/v1"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/antinvestor/service-property/service/repository"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 	"github.com/twpayne/go-geom"
 	"github.com/twpayne/go-geom/encoding/geojson"
 )
 
 type localityBusiness struct {
-	service    *frame.Service
-	profileCli *profileV1.ProfileClient
+	dbPool pool.Pool
 }
 
-func (l *localityBusiness) AddLocality(ctx context.Context, message *propertyV1.Locality) (*propertyV1.Locality, error) {
-
-	err := message.Validate()
-	if err != nil {
-		return nil, err
-	}
+func (l *localityBusiness) AddLocality(ctx context.Context, message *propertyv1.Locality) (*propertyv1.Locality, error) {
 
 	locality := models.Locality{
 		Name:        message.GetName(),
 		Description: message.GetDescription(),
-		ParentID:    message.GetParentID(),
-		Extra:       frame.DBPropertiesFromMap(message.Extras),
+		ParentID:    message.GetParentId(),
+		Extra:       models.StructToJSONMap(message.GetExtras()),
 	}
 
 	switch v := message.GetFeature().(type) {
-	case *propertyV1.Locality_Boundary:
-
+	case *propertyv1.Locality_Boundary:
 		var geoJsonFeature geom.T
-		err = geojson.Unmarshal([]byte(v.Boundary), &geoJsonFeature)
+		err := geojson.Unmarshal([]byte(v.Boundary), &geoJsonFeature)
 		if err != nil {
 			return nil, err
 		}
@@ -48,9 +41,9 @@ func (l *localityBusiness) AddLocality(ctx context.Context, message *propertyV1.
 		locality.Boundary = []byte(v.Boundary)
 		locality.Point = []byte(`{}`)
 
-	case *propertyV1.Locality_Point:
+	case *propertyv1.Locality_Point:
 		var geoJsonFeature geom.T
-		err = geojson.Unmarshal([]byte(v.Point), &geoJsonFeature)
+		err := geojson.Unmarshal([]byte(v.Point), &geoJsonFeature)
 		if err != nil {
 			return nil, err
 		}
@@ -64,14 +57,14 @@ func (l *localityBusiness) AddLocality(ctx context.Context, message *propertyV1.
 		locality.Point = []byte(v.Point)
 	}
 
-	if locality.ValidXID(message.GetID()) {
-		locality.ID = message.GetID()
+	if locality.ValidXID(message.GetId()) {
+		locality.ID = message.GetId()
 	} else {
 		locality.GenID(ctx)
 	}
 
-	localityRepository := repository.NewLocalityRepository(ctx, l.service)
-	err = localityRepository.Save(&locality)
+	localityRepo := repository.NewLocalityRepository(l.dbPool)
+	err := localityRepo.Save(ctx, &locality)
 	if err != nil {
 		return nil, err
 	}
@@ -79,20 +72,14 @@ func (l *localityBusiness) AddLocality(ctx context.Context, message *propertyV1.
 	return locality.ToApi(), nil
 }
 
-func (l *localityBusiness) DeleteLocality(ctx context.Context, message *propertyV1.RequestID) error {
+func (l *localityBusiness) DeleteLocality(ctx context.Context, id string) error {
 
-	err := message.Validate()
+	localityRepo := repository.NewLocalityRepository(l.dbPool)
+
+	locality, err := localityRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	localityRepository := repository.NewLocalityRepository(ctx, l.service)
-
-	var locality models.Locality
-	err = localityRepository.GetByID(message.GetID(), &locality)
-	if err != nil {
-		return err
-	}
-
-	return localityRepository.Delete(locality.GetID())
+	return localityRepo.Delete(ctx, locality.GetID())
 }

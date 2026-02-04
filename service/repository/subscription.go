@@ -2,43 +2,44 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	"github.com/antinvestor/service-property/service/models"
-	"github.com/pitabwire/frame"
+	"github.com/pitabwire/frame/datastore/pool"
 	"gorm.io/gorm"
 )
 
 type SubscriptionRepository interface {
-	GetByID(id string) (*models.Subscription, error)
-	GetByPropertyID(propertyId string, query string) ([]models.Subscription, error)
-	Save(subscription *models.Subscription) error
-	Delete(id string) error
+	GetByID(ctx context.Context, id string) (*models.Subscription, error)
+	GetByPropertyID(ctx context.Context, propertyId string, query string) ([]models.Subscription, error)
+	Save(ctx context.Context, subscription *models.Subscription) error
+	Delete(ctx context.Context, id string) error
 }
 
 type subscriptionRepository struct {
-	readDb  *gorm.DB
-	writeDb *gorm.DB
+	dbPool pool.Pool
 }
 
-func NewSubscriptionRepository(ctx context.Context, service *frame.Service) SubscriptionRepository {
-	return &subscriptionRepository{readDb: service.DB(ctx, true), writeDb: service.DB(ctx, false)}
+func NewSubscriptionRepository(dbPool pool.Pool) SubscriptionRepository {
+	return &subscriptionRepository{dbPool: dbPool}
 }
 
-func (repo *subscriptionRepository) GetByID(id string) (*models.Subscription, error) {
+func (repo *subscriptionRepository) GetByID(ctx context.Context, id string) (*models.Subscription, error) {
 	subscription := models.Subscription{}
-	err := repo.readDb.First(&subscription, "id = ?", id).Error
+	err := repo.dbPool.DB(ctx, true).First(&subscription, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
 	return &subscription, nil
 }
 
-func (repo *subscriptionRepository) GetByPropertyID(propertyId string, query string) ([]models.Subscription, error) {
+func (repo *subscriptionRepository) GetByPropertyID(ctx context.Context, propertyId string, query string) ([]models.Subscription, error) {
 	var subscriptionList []models.Subscription
 
-	db := repo.readDb.Where("property_id = ? ", propertyId)
+	db := repo.dbPool.DB(ctx, true).Where("property_id = ?", propertyId)
 	if query != "" {
-		db = db.Where("property_id = ? AND role iLike ? ", propertyId, fmt.Sprintf("%%%s%%", query))
+		db = db.Where("role iLike ?", fmt.Sprintf("%%%s%%", query))
 	}
 	err := db.Find(&subscriptionList).Error
 	if err != nil {
@@ -48,20 +49,19 @@ func (repo *subscriptionRepository) GetByPropertyID(propertyId string, query str
 	return subscriptionList, nil
 }
 
-func (repo *subscriptionRepository) Save(subscription *models.Subscription) error {
-	err := repo.writeDb.Save(subscription).Error
-	if frame.DBErrorIsRecordNotFound(err) {
-		return repo.writeDb.Create(subscription).Error
+func (repo *subscriptionRepository) Save(ctx context.Context, subscription *models.Subscription) error {
+	err := repo.dbPool.DB(ctx, false).Save(subscription).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return repo.dbPool.DB(ctx, false).Create(subscription).Error
 	}
-	return nil
+	return err
 }
 
-func (repo *subscriptionRepository) Delete(id string) error {
-	subscription, err := repo.GetByID(id)
+func (repo *subscriptionRepository) Delete(ctx context.Context, id string) error {
+	subscription, err := repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	return repo.writeDb.Delete(subscription).Error
-
+	return repo.dbPool.DB(ctx, false).Delete(subscription).Error
 }
