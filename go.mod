@@ -3,9 +3,9 @@ module github.com/antinvestor/service-property
 go 1.26
 
 require (
-	buf.build/gen/go/antinvestor/common/protocolbuffers/go v1.36.11-20260102104630-5c57561a771f.1
-	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260102123502-9be03cdb3904.2
-	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260102123502-9be03cdb3904.1
+	buf.build/gen/go/antinvestor/common/protocolbuffers/go v1.36.11-20260219054105-fe125014d75c.1
+	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260219062102-a7f099ddfe12.2
+	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260219062102-a7f099ddfe12.1
 	connectrpc.com/connect v1.19.1
 	github.com/pitabwire/frame v1.74.0
 	github.com/twpayne/go-geom v1.6.1
@@ -20,7 +20,7 @@ require (
 	buf.build/go/protovalidate v1.1.3 // indirect
 	cel.dev/expr v0.25.1 // indirect
 	connectrpc.com/otelconnect v0.9.0 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -105,6 +105,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260223185530-2f722ef697dc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260223185530-2f722ef697dc // indirect
 	google.golang.org/grpc v1.79.1 // indirect
-	gorm.io/driver/mysql v1.5.6 // indirect
+	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 )
