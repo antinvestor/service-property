@@ -1,25 +1,55 @@
-FROM golang:1.26 as builder
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
-WORKDIR /
+# ---------- Builder ----------
+FROM golang:1.26 AS builder
 
-COPY go.mod .
-COPY go.sum .
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
+WORKDIR /app
+
+ARG REPOSITORY
+ARG VERSION=dev
+ARG REVISION=none
+ARG BUILDTIME
+
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the local package files to the container's workspace.
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o property_binary .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath \
+     -ldflags="-s -w \
+         -X github.com/pitabwire/frame/version.Repository=${REPOSITORY} \
+         -X github.com/pitabwire/frame/version.Version=${VERSION} \
+         -X github.com/pitabwire/frame/version.Commit=${REVISION} \
+         -X github.com/pitabwire/frame/version.Date=${BUILDTIME}" \
+     -o /app/binary .
 
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /property_binary /property
-COPY --from=builder /migrations /migrations
+# ---------- Final ----------
+FROM cgr.dev/chainguard/static:latest
+
+LABEL maintainer="Antinvestor <dev@antinvestor.com>"
+
+USER 65532:65532
+
+EXPOSE 80
+
+ARG REPOSITORY
+ARG VERSION
+ARG REVISION
+ARG BUILDTIME
+LABEL org.opencontainers.image.title="service-property"
+LABEL org.opencontainers.image.version=$VERSION
+LABEL org.opencontainers.image.revision=$REVISION
+LABEL org.opencontainers.image.created=$BUILDTIME
+LABEL org.opencontainers.image.source=$REPOSITORY
 
 WORKDIR /
 
-# Run the service command by default when the container starts.
-ENTRYPOINT ["/property"]
+COPY --from=builder /app/binary /property
+COPY --from=builder /app/migrations /migrations
 
-# Document the port that the service listens on by default.
-EXPOSE 7020
+ENTRYPOINT ["/property"]
