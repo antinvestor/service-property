@@ -1,13 +1,13 @@
 module github.com/antinvestor/service-property
 
-go 1.25.2
+go 1.26
 
 require (
 	buf.build/gen/go/antinvestor/common/protocolbuffers/go v1.36.11-20260102104630-5c57561a771f.1
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260102123502-9be03cdb3904.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260102123502-9be03cdb3904.1
 	connectrpc.com/connect v1.19.1
-	github.com/pitabwire/frame v1.73.0
+	github.com/pitabwire/frame v1.74.0
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7
@@ -53,7 +53,7 @@ require (
 	github.com/ory/keto/proto v0.13.0-alpha.0 // indirect
 	github.com/panjf2000/ants/v2 v2.11.5 // indirect
 	github.com/pitabwire/natspubsub v0.7.12 // indirect
-	github.com/pitabwire/util v0.5.0 // indirect
+	github.com/pitabwire/util v0.6.0 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
