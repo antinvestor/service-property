@@ -7,7 +7,7 @@ require (
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260219062102-a7f099ddfe12.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260219062102-a7f099ddfe12.1
 	connectrpc.com/connect v1.19.1
-	github.com/pitabwire/frame v1.76.5
+	github.com/pitabwire/frame v1.76.6
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7
@@ -53,7 +53,7 @@ require (
 	github.com/ory/keto/proto v0.13.0-alpha.0 // indirect
 	github.com/panjf2000/ants/v2 v2.11.5 // indirect
 	github.com/pitabwire/natspubsub v0.7.12 // indirect
-	github.com/pitabwire/util v0.6.0 // indirect
+	github.com/pitabwire/util v0.6.1 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
@@ -104,7 +104,7 @@ require (
 	google.golang.org/api v0.269.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260223185530-2f722ef697dc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260223185530-2f722ef697dc // indirect
-	google.golang.org/grpc v1.79.1 // indirect
+	google.golang.org/grpc v1.79.2 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 )
