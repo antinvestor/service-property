@@ -7,7 +7,7 @@ require (
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260324161230-029fff72e739.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260324161230-029fff72e739.1
 	connectrpc.com/connect v1.19.1
-	github.com/pitabwire/frame v1.92.2
+	github.com/pitabwire/frame v1.93.0
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7
@@ -30,7 +30,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/exaring/otelpgx v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
@@ -55,7 +55,7 @@ require (
 	github.com/ory/keto/proto v0.13.0-alpha.0.0.20260327085200-c0e5fcbbbce1 // indirect
 	github.com/panjf2000/ants/v2 v2.12.0 // indirect
 	github.com/pitabwire/natspubsub v0.8.0 // indirect
-	github.com/pitabwire/util v0.7.0 // indirect
+	github.com/pitabwire/util v0.8.0 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
@@ -103,10 +103,10 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	google.golang.org/api v0.273.0 // indirect
+	google.golang.org/api v0.273.1 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/grpc v1.80.0 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 )
