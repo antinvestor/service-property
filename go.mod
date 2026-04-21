@@ -6,8 +6,8 @@ require (
 	buf.build/gen/go/antinvestor/common/protocolbuffers/go v1.36.11-20260325040325-9771112f2289.1
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260324161230-029fff72e739.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260324161230-029fff72e739.1
-	connectrpc.com/connect v1.19.1
-	github.com/pitabwire/frame v1.94.1
+	connectrpc.com/connect v1.19.2
+	github.com/pitabwire/frame v1.94.6
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/datatypes v1.2.7
@@ -52,9 +52,9 @@ require (
 	github.com/nats-io/nkeys v0.4.15 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.6.1 // indirect
-	github.com/ory/keto/proto v0.13.0-alpha.0.0.20260327085200-c0e5fcbbbce1 // indirect
+	github.com/ory/keto/proto v0.13.0-alpha.0.0.20260420082854-eb334a7a5cf0 // indirect
 	github.com/panjf2000/ants/v2 v2.12.0 // indirect
-	github.com/pitabwire/natspubsub v0.8.1 // indirect
+	github.com/pitabwire/natspubsub v0.8.2 // indirect
 	github.com/pitabwire/util v0.8.0 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -96,7 +96,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	gocloud.dev v0.45.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
