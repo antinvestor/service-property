@@ -6,7 +6,7 @@ require (
 	buf.build/gen/go/antinvestor/common/protocolbuffers/go v1.36.11-20260509050709-3f270876dbf3.1
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260324161230-029fff72e739.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260324161230-029fff72e739.1
-	connectrpc.com/connect v1.19.2
+	connectrpc.com/connect v1.20.0
 	github.com/pitabwire/frame v1.97.3
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.11
@@ -28,7 +28,7 @@ require (
 	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/exaring/otelpgx v0.10.0 // indirect
+	github.com/exaring/otelpgx v0.11.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
