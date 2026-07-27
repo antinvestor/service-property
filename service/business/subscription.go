@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/antinvestor/service-property/service/models"
 	"github.com/antinvestor/service-property/service/repository"
-	"github.com/pitabwire/frame/datastore/pool"
+	"github.com/pitabwire/frame/v2/datastore/pool"
 )
 
 type subscriptionBusiness struct {
