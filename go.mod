@@ -7,7 +7,7 @@ require (
 	buf.build/gen/go/antinvestor/property/connectrpc/go v1.19.1-20260324161230-029fff72e739.2
 	buf.build/gen/go/antinvestor/property/protocolbuffers/go v1.36.11-20260324161230-029fff72e739.1
 	connectrpc.com/connect v1.20.0
-	github.com/pitabwire/frame/v2 v2.1.7
+	github.com/pitabwire/frame/v2 v2.1.8
 	github.com/twpayne/go-geom v1.6.1
 	google.golang.org/protobuf v1.36.12
 	gorm.io/datatypes v1.2.7
